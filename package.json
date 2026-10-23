@@ -12,12 +12,16 @@
   "scripts": {
     "dev": "npm run build -w shared && concurrently -n web,api -c cyan,green \"npm run dev -w frontend\" \"npm run dev -w backend\"",
     "build": "npm run build -w shared && npm run build -w backend && npm run build -w frontend",
+    "build:backend": "npm run build -w shared && npm run build -w backend",
+    "start:backend": "npm run start -w backend",
     "test": "npm run build -w shared && npm run test -w backend",
     "typecheck": "npm run build -w shared && npm run typecheck -w backend && npm run typecheck -w frontend"
   },
+  "dependencies": {
+    "typescript": "^5.9.3"
+  },
   "devDependencies": {
     "concurrently": "^9.2.1",
-    "prettier": "^3.9.10",
-    "typescript": "^5.9.3"
+    "prettier": "^3.9.10"
   }
 }
