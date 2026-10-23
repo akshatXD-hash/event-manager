@@ -18,7 +18,8 @@ export async function postRequirement(
   payload: RequirementInput,
   key: string,
 ): Promise<SavedRequirement> {
-  const baseUrl = process.env.NEXT_PUBLIC_API_URL || "http://localhost:4000";
+  const baseUrl =
+    process.env.NEXT_PUBLIC_API_URL || "https://event-manager-1-tfn4.onrender.com";
   let response: Response;
   try {
     response = await fetch(`${baseUrl.replace(/\/$/, "")}/api/requirements`, {
