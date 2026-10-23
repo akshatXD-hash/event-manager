@@ -36,7 +36,7 @@ try {
 } catch (error) {
   console.error(
     "Could not connect to MongoDB. Check the connection string and Atlas network access.",
-    error instanceof Error ? error.name : "Connection error",
+    error instanceof Error ? error.message : error,
   );
   process.exit(1);
 }
