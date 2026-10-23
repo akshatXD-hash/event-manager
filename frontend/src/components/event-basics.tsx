@@ -63,7 +63,10 @@ export function EventBasics({
                 if (!event.target.checked) setValue("event.endDate", startDate);
               }}
             />
-            Multiple days
+            <span className="toggle-switch">
+              <span className="toggle-knob" />
+            </span>
+            <span>Multiple days</span>
           </label>
         </div>
         <div className={dateRange ? "field-grid" : ""}>
@@ -124,11 +127,11 @@ export function EventBasics({
                     checked={category === key}
                     onChange={() => chooseCategory(key)}
                   />
-                  <span className="category-icon">
-                    <Icon size={23} strokeWidth={1.7} />
+                  <span className="category-icon-wrapper">
+                    <Icon size={24} strokeWidth={1.8} />
                   </span>
                   <span className="category-check">
-                    {category === key && <Check size={11} strokeWidth={3} />}
+                    {category === key && <Check size={12} strokeWidth={3} />}
                   </span>
                   <strong>{categories[key].label}</strong>
                   <span className="category-description">

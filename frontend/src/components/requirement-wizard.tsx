@@ -10,10 +10,12 @@ import {
   CheckCheck,
   CircleHelp,
   Clock3,
+  Copy,
   Lightbulb,
   LoaderCircle,
   LockKeyhole,
   PartyPopper,
+  Sparkles,
   X,
 } from "lucide-react";
 import {
@@ -36,6 +38,7 @@ import { EventBasics } from "./event-basics";
 import { ServiceDetails } from "./service-details";
 import { BudgetDetails } from "./budget-details";
 import { Review } from "./review";
+import { Confetti } from "./confetti";
 
 const steps = [
   {
@@ -76,6 +79,13 @@ const tips = [
 export function RequirementWizard() {
   const form = useForm<FormValues>({ defaultValues });
   const [step, setStep] = useState(0);
+  const [direction, setDirection] = useState<"forward" | "backward">("forward");
+  const [animKey, setAnimKey] = useState(0);
+  const [stepCompletedNotice, setStepCompletedNotice] = useState<{
+    stepIndex: number;
+    title: string;
+  } | null>(null);
+  const [copied, setCopied] = useState(false);
   const [dateRange, setDateRange] = useState(false);
   const [review, setReview] = useState<RequirementInput | null>(null);
   const [saved, setSaved] = useState<SavedRequirement | null>(null);
@@ -85,8 +95,11 @@ export function RequirementWizard() {
   const request = useRef({ payload: "", key: "" });
   const title = useRef<HTMLHeadingElement>(null);
   const help = useRef<HTMLDialogElement>(null);
+  const noticeTimer = useRef<NodeJS.Timeout | null>(null);
   const startDate = form.watch("event.startDate");
   const category = form.watch("category");
+
+  const progressPercent = saved ? 100 : Math.round(((step + 1) / steps.length) * 100);
 
   useEffect(() => {
     if (!dateRange) form.setValue("event.endDate", startDate);
@@ -96,9 +109,12 @@ export function RequirementWizard() {
   }, [step, saved]);
 
   function goTo(next: number) {
+    if (next === step) return;
+    setDirection(next > step ? "forward" : "backward");
     setMessage("");
     form.clearErrors();
     setStep(next);
+    setAnimKey((prev) => prev + 1);
     window.scrollTo({ top: 0, behavior: "smooth" });
   }
 
@@ -121,9 +137,21 @@ export function RequirementWizard() {
       );
       return;
     }
+
+    // Trigger step completed celebratory feedback
+    const completedTitle = steps[step].label;
+    if (noticeTimer.current) clearTimeout(noticeTimer.current);
+    setStepCompletedNotice({ stepIndex: step, title: completedTitle });
+    noticeTimer.current = setTimeout(() => {
+      setStepCompletedNotice(null);
+    }, 2800);
+
     if (step < 3) {
       if (step === 2) setReview(requirementSchema.parse(getPayload(values)));
-      goTo(step + 1);
+      setDirection("forward");
+      setStep(step + 1);
+      setAnimKey((prev) => prev + 1);
+      window.scrollTo({ top: 0, behavior: "smooth" });
       return;
     }
     const payload = requirementSchema.parse(getPayload(values));
@@ -148,6 +176,7 @@ export function RequirementWizard() {
             message: field.message,
           });
         const first = error.fields[0].field;
+        setDirection("backward");
         setStep(
           first.startsWith("event") || first === "category"
             ? 0
@@ -155,6 +184,7 @@ export function RequirementWizard() {
               ? 1
               : 2,
         );
+        setAnimKey((prev) => prev + 1);
       }
     } finally {
       busy.current = false;
@@ -167,8 +197,17 @@ export function RequirementWizard() {
     setSaved(null);
     setReview(null);
     setDateRange(false);
+    setDirection("forward");
+    setAnimKey(0);
+    setStepCompletedNotice(null);
     request.current = { payload: "", key: "" };
     goTo(0);
+  }
+
+  function copyRequirementId(id: string) {
+    void navigator.clipboard.writeText(id);
+    setCopied(true);
+    setTimeout(() => setCopied(false), 2200);
   }
 
   return (
@@ -177,12 +216,11 @@ export function RequirementWizard() {
         <div className="header-inner">
           <a href="/" className="brand" aria-label="GoPratle home">
             <span className="brand-mark">
-              <Asterisk size={27} strokeWidth={2.5} />
+              <Asterisk size={28} strokeWidth={2.8} />
             </span>
-            gopratle<span className="brand-period">.</span>
+            <span className="brand-text">gopratle</span><span className="brand-period">.</span>
           </a>
           <div className="header-right">
-            <span className="header-label">Good people. Great events.</span>
             <button
               type="button"
               className="help-button"
@@ -224,7 +262,7 @@ export function RequirementWizard() {
                     >
                       <span className="step-number">
                         {complete ? (
-                          <Check size={16} strokeWidth={2.5} />
+                          <Check size={16} strokeWidth={2.5} className="step-check-icon" />
                         ) : (
                           `0${index + 1}`
                         )}
@@ -258,48 +296,69 @@ export function RequirementWizard() {
         </aside>
         <div className="main-column">
           {saved ? (
-            <section className="success-card" aria-labelledby="success-title">
-              <div className="success-icon">
-                <PartyPopper size={37} strokeWidth={1.5} />
-              </div>
-              <span className="eyebrow">YOU’RE ALL SET</span>
-              <h1 id="success-title" ref={title} tabIndex={-1}>
-                One step closer to
-                <br />a great event.
-              </h1>
-              <p>
-                Your {categories[saved.category].short.toLowerCase()}{" "}
-                requirement for <strong>{review?.event.name}</strong> has been
-                posted successfully.
-              </p>
-              <div className="success-receipt">
-                <span>
-                  <CheckCheck size={17} /> Saved under{" "}
-                  {categories[saved.category].label}
-                </span>
-                <small>Requirement ID</small>
-                <code>{saved.id}</code>
-              </div>
-              <button
-                className="button primary"
-                type="button"
-                onClick={startAgain}
-              >
-                Post another requirement
-                <ArrowRight size={17} />
-              </button>
-              <p className="success-footnote">
-                Need a different service for the same event? Create a separate
-                requirement for that category.
-              </p>
-            </section>
+            <>
+              <Confetti />
+              <section className="success-card" aria-labelledby="success-title">
+                <div className="success-icon-wrap">
+                  <div className="success-icon">
+                    <PartyPopper size={37} strokeWidth={1.5} />
+                  </div>
+                </div>
+                <span className="eyebrow">YOU’RE ALL SET</span>
+                <h1 id="success-title" ref={title} tabIndex={-1}>
+                  One step closer to
+                  <br />a great event.
+                </h1>
+                <p>
+                  Your {categories[saved.category].short.toLowerCase()}{" "}
+                  requirement for <strong>{review?.event.name}</strong> has been
+                  posted successfully.
+                </p>
+                <div className="success-receipt">
+                  <span className="receipt-category">
+                    <CheckCheck size={17} /> Saved under{" "}
+                    {categories[saved.category].label}
+                  </span>
+                  <small>Requirement ID</small>
+                  <div className="receipt-code-row">
+                    <code>{saved.id}</code>
+                    <button
+                      type="button"
+                      className="copy-btn"
+                      onClick={() => copyRequirementId(saved.id)}
+                      title="Copy Requirement ID"
+                    >
+                      {copied ? (
+                        <>
+                          <Check size={13} className="text-green" />
+                          <span>Copied!</span>
+                        </>
+                      ) : (
+                        <>
+                          <Copy size={13} />
+                          <span>Copy</span>
+                        </>
+                      )}
+                    </button>
+                  </div>
+                </div>
+                <button
+                  className="button primary"
+                  type="button"
+                  onClick={startAgain}
+                >
+                  Post another requirement
+                  <ArrowRight size={17} />
+                </button>
+                <p className="success-footnote">
+                  Need a different service for the same event? Create a separate
+                  requirement for that category.
+                </p>
+              </section>
+            </>
           ) : (
             <>
-              <div className="page-heading">
-                <div className="breadcrumb">
-                  Post a requirement <span>/</span>{" "}
-                  <span>{steps[step].label}</span>
-                </div>
+              <div className="page-heading animate-fade-in" key={`heading-${step}`}>
                 <div className="heading-meta">
                   <span className="eyebrow">A GREAT EVENT STARTS HERE</span>
                   <span className="step-count">STEP {step + 1} OF 4</span>
@@ -319,20 +378,46 @@ export function RequirementWizard() {
                   }}
                   aria-busy={pending}
                 >
+                  <div
+                    className="wizard-progress-track"
+                    role="progressbar"
+                    aria-valuenow={progressPercent}
+                    aria-valuemin={0}
+                    aria-valuemax={100}
+                    aria-label={`Step ${step + 1} of 4: ${progressPercent}% complete`}
+                  >
+                    <div
+                      className="wizard-progress-fill"
+                      style={{ width: `${progressPercent}%` }}
+                    >
+                      <span className="wizard-progress-glow" />
+                    </div>
+                  </div>
                   <div className="form-card-top">
-                    <span className="card-label">
-                      <span className="status-dot" />
-                      {step === 0
-                        ? "THE ESSENTIALS"
-                        : `${categories[category].label.toUpperCase()} REQUIREMENT`}
-                    </span>
-                    <span>
-                      {step === 3 ? "Your final check" : "Let’s make it yours"}
+                    <div className="card-top-left">
+                      <span className="card-label">
+                        {step === 0
+                          ? "THE ESSENTIALS"
+                          : `${categories[category].label.toUpperCase()} REQUIREMENT`}
+                      </span>
+                      {stepCompletedNotice && (
+                        <span className="step-complete-pill animate-pop-in" role="status">
+                          <Check size={12} strokeWidth={2.8} />
+                          <span>{stepCompletedNotice.title} saved</span>
+                        </span>
+                      )}
+                    </div>
+                    <span className="card-step-badge">
+                      <Sparkles size={13} className="sparkle-icon" />
+                      Step {step + 1} of 4 • {progressPercent}%
                     </span>
                   </div>
-                  <div className="form-body">
+                  <div
+                    className={`form-body step-animated step-${direction}`}
+                    key={`step-${step}-${animKey}`}
+                  >
                     {message && (
-                      <div className="error-banner" role="alert">
+                      <div className="error-banner animate-shake" role="alert">
                         {message}
                       </div>
                     )}
