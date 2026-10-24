@@ -104,6 +104,8 @@ API tests use `mongodb-memory-server`, which downloads a MongoDB binary on first
 
 For a browser walkthrough, submit one requirement per category. Also try an empty step, a reversed date range, switching categories, editing from review, and submitting while the API is stopped. A failed request should preserve entered values and allow retry.
 
+Frontend API tests cover slow-server timeouts, network failures, hosting error pages, validation responses, and retry receipts. Submissions allow up to 90 seconds for a sleeping backend to wake up, with a waiting message after 15 seconds. Retrying unchanged details reuses the submission key to avoid duplicates.
+
 ## Deployment
 
 **Backend on Render:** use the repository root as the service root. Set the build command to `npm ci && npm run build -w shared && npm run build -w backend` and the start command to `npm run start -w backend`. Set the health check to `/api/health`.

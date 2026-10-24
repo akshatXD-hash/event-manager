@@ -90,6 +90,7 @@ export function RequirementWizard() {
   const [review, setReview] = useState<RequirementInput | null>(null);
   const [saved, setSaved] = useState<SavedRequirement | null>(null);
   const [pending, setPending] = useState(false);
+  const [slowRequest, setSlowRequest] = useState(false);
   const [message, setMessage] = useState("");
   const busy = useRef(false);
   const request = useRef({ payload: "", key: "" });
@@ -108,8 +109,14 @@ export function RequirementWizard() {
     title.current?.focus({ preventScroll: true });
   }, [step, saved]);
 
+  useEffect(() => {
+    if (!pending) return;
+    const timer = setTimeout(() => setSlowRequest(true), 15000);
+    return () => clearTimeout(timer);
+  }, [pending]);
+
   function goTo(next: number) {
-    if (next === step) return;
+    if (busy.current || next === step) return;
     setDirection(next > step ? "forward" : "backward");
     setMessage("");
     form.clearErrors();
@@ -138,15 +145,10 @@ export function RequirementWizard() {
       return;
     }
 
-    // Trigger step completed celebratory feedback
-    const completedTitle = steps[step].label;
-    if (noticeTimer.current) clearTimeout(noticeTimer.current);
-    setStepCompletedNotice({ stepIndex: step, title: completedTitle });
-    noticeTimer.current = setTimeout(() => {
-      setStepCompletedNotice(null);
-    }, 2800);
-
     if (step < 3) {
+      if (noticeTimer.current) clearTimeout(noticeTimer.current);
+      setStepCompletedNotice({ stepIndex: step, title: steps[step].label });
+      noticeTimer.current = setTimeout(() => setStepCompletedNotice(null), 2800);
       if (step === 2) setReview(requirementSchema.parse(getPayload(values)));
       setDirection("forward");
       setStep(step + 1);
@@ -159,6 +161,7 @@ export function RequirementWizard() {
     if (request.current.payload !== serialized)
       request.current = { payload: serialized, key: crypto.randomUUID() };
     busy.current = true;
+    setSlowRequest(false);
     setPending(true);
     try {
       const created = await postRequirement(payload, request.current.key);
@@ -403,7 +406,7 @@ export function RequirementWizard() {
                       {stepCompletedNotice && (
                         <span className="step-complete-pill animate-pop-in" role="status">
                           <Check size={12} strokeWidth={2.8} />
-                          <span>{stepCompletedNotice.title} saved</span>
+                          <span>{stepCompletedNotice.title} complete</span>
                         </span>
                       )}
                     </div>
@@ -416,6 +419,13 @@ export function RequirementWizard() {
                     className={`form-body step-animated step-${direction}`}
                     key={`step-${step}-${animKey}`}
                   >
+                    {pending && slowRequest && (
+                      <div className="inline-note" role="status">
+                        Still connecting to the server. The first submission can
+                        take about a minute. Please keep this page open; your
+                        details are safe here.
+                      </div>
+                    )}
                     {message && (
                       <div className="error-banner animate-shake" role="alert">
                         {message}
